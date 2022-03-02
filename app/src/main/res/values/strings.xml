@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Proto_emg</string>
+    <string name="emg_title">Data Display</string>
+    <string name="connection_status">Connection Status：</string>
+    <string name="not_connected">Not Connected</string>
+    <string name="byte_content">Byte Content：</string>
+</resources>
