@@ -129,7 +129,7 @@ public class BytetoGraph extends AppCompatActivity {
                 Log.d(TAG, "Received Data via Bluetooth");
                 byte[] getByteData = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
                 //byte[] decoded = Base64.decode(getByteData, Base64.DEFAULT);
-                //Log.d(TAG, "No. of Bytes: " + getByteData.length);
+                Log.d(TAG, "No. of Bytes: " + getByteData.length);
                 //Log.println(Log.DEBUG,TAG,Arrays.toString(getByteData));
                 int[] result_int = byteToInt(getByteData);
 //                StringBuilder stringBuilder = new StringBuilder(getByteData.length);
