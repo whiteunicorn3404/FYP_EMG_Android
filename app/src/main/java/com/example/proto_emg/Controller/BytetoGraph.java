@@ -61,13 +61,13 @@ public class BytetoGraph extends AppCompatActivity {
         startPlot();
     }
 
-    /**初始化藍芽*/
+    /**Initialize Bluetooth*/
     private void initBLE(){
-        /**綁定Service
+        /**Bind Service
          * @see BluetoothLeService*/
         Intent bleService = new Intent(this, BluetoothLeService.class);
         bindService(bleService,mServiceConnection,BIND_AUTO_CREATE);
-        /**設置廣播*/
+        /**Set Broadcasting*/
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_CONNECTED);//連接一個GATT服務
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED);//從GATT服務中斷開連接
@@ -85,7 +85,7 @@ public class BytetoGraph extends AppCompatActivity {
         setGraph();
     }
 
-    /**藍芽已連接/已斷線資訊回傳*/
+    /**BT Connected/Disconnected*/
     private ServiceConnection mServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder service) {
@@ -107,26 +107,26 @@ public class BytetoGraph extends AppCompatActivity {
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
 
-            /**如果有連接*/
+            /**If connected*/
             if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
-                Log.d(TAG, "藍芽已連線");
+                Log.d(TAG, "BT Connected");
                 serverStatus.setText("Connected");
             }
-            /**如果沒有連接*/
+            /**If no connection*/
             else if (BluetoothLeService.ACTION_GATT_DISCONNECTED.equals(action)) {
-                Log.d(TAG, "藍芽已斷開");
+                Log.d(TAG, "Bluetooth Disconnected");
                 serverStatus.setText("Disconnected");
             }
-            /**找到GATT服務*/
+            /**GATT Service Found*/
             else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
-                Log.d(TAG, "已搜尋到GATT服務");
+                Log.d(TAG, "GATT Service Discovered");
                 List<BluetoothGattService> gattList =  mBluetoothLeService.getSupportedGattServices();
                 displayGattAtLogCat(gattList);
                 connectToCharacteristics(gattList);
             }
-            /**接收來自藍芽傳回的資料*/
+            /**Receive Data From Bluetooth Server*/
             else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
-                Log.d(TAG, "接收到藍芽資訊");
+                Log.d(TAG, "Received Data via Bluetooth");
                 byte[] getByteData = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
                 //byte[] decoded = Base64.decode(getByteData, Base64.DEFAULT);
                 //Log.d(TAG, "No. of Bytes: " + getByteData.length);
@@ -144,7 +144,7 @@ public class BytetoGraph extends AppCompatActivity {
             }
         }
     };//onReceive
-    /**將藍芽所有資訊顯示在Logcat*/
+    /**Display BT information on Logcat*/
     private void displayGattAtLogCat(List<BluetoothGattService> gattList){
         for (BluetoothGattService service : gattList){
             Log.d(TAG, "Service: "+service.getUuid().toString());
@@ -157,7 +157,7 @@ public class BytetoGraph extends AppCompatActivity {
             }
         }
     }
-    /**關閉藍芽*/
+    /**Close BT*/
     private void closeBluetooth() {
         if (mBluetoothLeService == null) return;
         mBluetoothLeService.disconnect();
@@ -227,9 +227,9 @@ public class BytetoGraph extends AppCompatActivity {
     }
 
     private LineDataSet createSet(){
-        LineDataSet set = new LineDataSet(null, "Dynamic Data");
+        LineDataSet set = new LineDataSet(null, "Dynamic EMG Data");
         set.setAxisDependency(YAxis.AxisDependency.LEFT);
-        set.setLineWidth(3f);
+        set.setLineWidth(1f);
         set.setColor(Color.BLUE);
         set.setMode(LineDataSet.Mode.CUBIC_BEZIER);
         set.setCubicIntensity(0.2f);
@@ -251,8 +251,8 @@ public class BytetoGraph extends AppCompatActivity {
 
             data.addEntry(new Entry(set.getEntryCount(), element), 0);
             data.notifyDataChanged();
-            data_chart.setMaxVisibleValueCount(200);
-            data_chart.setVisibleXRange(0,200);
+            data_chart.setMaxVisibleValueCount(500);
+            data_chart.setVisibleXRange(0,500);
             data_chart.notifyDataSetChanged();
             data_chart.invalidate();
             data_chart.moveViewToX(data.getEntryCount());
@@ -300,7 +300,7 @@ public class BytetoGraph extends AppCompatActivity {
         data_chart.setPinchZoom(false);
 
         LineData data = new LineData();
-        data.setValueTextColor(Color.WHITE);
+        data.setValueTextColor(Color.DKGRAY);
         data_chart.setData(data);
         Legend legend = data_chart.getLegend();
         legend.setForm(Legend.LegendForm.LINE);
@@ -323,7 +323,7 @@ public class BytetoGraph extends AppCompatActivity {
         y.setTextColor(Color.BLACK);
         y.setDrawGridLines(true);
         y.setAxisMaximum(5000);
-        y.setAxisMinimum(0);
+        y.setAxisMinimum(-2000);
         data_chart.getAxisRight().setEnabled(false);
         data_chart.setVisibleXRange(0,50);//
     }

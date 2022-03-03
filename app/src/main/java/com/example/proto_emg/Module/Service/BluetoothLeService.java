@@ -290,7 +290,7 @@ public class BluetoothLeService extends Service {
             String record = characteristic.getStringValue(0);
             byte[] a = characteristic.getValue();
             Log.d(TAG, "readCharacteristic:回傳 " + record);
-            Log.d(TAG, "readCharacteristic: 回傳byte[] " + byteArrayToHexStr(a));
+            Log.d(TAG, "readCharacteristic: 回傳byte[] " + a.toString());
         }
 
         @SuppressLint("MissingPermission")
