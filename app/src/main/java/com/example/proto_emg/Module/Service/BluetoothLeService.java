@@ -359,12 +359,4 @@ public class BluetoothLeService extends Service {
         return gethex;
 
     }
-
-    private Runnable waitMTU = new Runnable() {
-        @SuppressLint("MissingPermission")
-        @Override
-        public void run() {
-
-        }
-    };
 }

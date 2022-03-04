@@ -322,8 +322,8 @@ public class BytetoGraph extends AppCompatActivity {
         YAxis y = data_chart.getAxisLeft();
         y.setTextColor(Color.BLACK);
         y.setDrawGridLines(true);
-        y.setAxisMaximum(5000);
-        y.setAxisMinimum(-2000);
+        y.setAxisMaximum(4000);
+        y.setAxisMinimum(0);
         data_chart.getAxisRight().setEnabled(false);
         data_chart.setVisibleXRange(0,50);//
     }
