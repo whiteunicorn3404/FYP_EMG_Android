@@ -12,8 +12,8 @@ import android.content.ServiceConnection;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.util.Base64;
 import android.util.Log;
+import android.view.WindowManager;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
@@ -45,7 +45,7 @@ public class BytetoGraph extends AppCompatActivity {
     private BluetoothLeService mBluetoothLeService;
     private ScannedData selectedDevice;
     private TextView byteView,serverStatus;
-    private short data_count = 0;
+    private long data_count = 0;
 
     private LineChart data_chart;
     private Thread thread;
@@ -55,6 +55,7 @@ public class BytetoGraph extends AppCompatActivity {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.byte_graph_view);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         selectedDevice = (ScannedData) getIntent().getSerializableExtra(INTENT_KEY);
         initBLE();
         initUI();
@@ -220,7 +221,7 @@ public class BytetoGraph extends AppCompatActivity {
             result_arr[i*2] = (first << 4&0b111111110000) | second >>> 4;
             result_arr[i*2+1] = ((second<<8)&0b111100000000) | third;                  //3840 == 0000111100000000; bitmask operation
         }
-        data_count += result_arr.length;
+        data_count += 1;
         Log.println(Log.INFO,TAG, "Result_arr length: " + result_arr.length);
         Log.println(Log.INFO,TAG,"Total Data Count: " + data_count);
         return result_arr;
