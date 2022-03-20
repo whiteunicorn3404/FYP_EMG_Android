@@ -1,6 +1,8 @@
 package com.example.proto_emg.Controller;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -34,6 +36,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean isScanning = false;
     ArrayList<ScannedData> findDevice = new ArrayList<>();
     RecyclerViewAdapter mAdapter;
+    private boolean isPermissionPassed = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,6 +71,15 @@ public class MainActivity extends AppCompatActivity {
             if(!mBluetoothAdapter.isEnabled()){
                 Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                 startActivityForResult(enableBtIntent,REQUEST_ENABLE_BT);
+            }
+
+            /**Request Permisson to write to external storage*/
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                            != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(
+                        this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 100);
+            } else {
+                isPermissionPassed = true;
             }
         }else finish();
     }
@@ -206,4 +218,24 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         }
     };
+
+    /**回傳使用者所做的權限選擇(接受/拒絕)*/
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 100) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                /**如果用戶同意*/
+                isPermissionPassed = true;
+            } else {
+                /**如果用戶不同意*/
+                if (ActivityCompat.shouldShowRequestPermissionRationale(this
+                        , Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                    Toast.makeText(this, "Bye then!", Toast.LENGTH_SHORT).show();
+                    finish();
+                }
+            }
+        }
+    }//onRequestPermissionsResult
+
 }
