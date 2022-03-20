@@ -287,10 +287,10 @@ public class BluetoothLeService extends Service {
             }
             lockCharacteristicRead = true;
             mBluetoothGatt.readCharacteristic(characteristic);
-            String record = characteristic.getStringValue(0);
-            byte[] a = characteristic.getValue();
-            Log.d(TAG, "readCharacteristic:回傳 " + record);
-            Log.d(TAG, "readCharacteristic: 回傳byte[] " + a.toString());
+//            String record = characteristic.getStringValue(0);
+//            byte[] a = characteristic.getValue();
+//            Log.d(TAG, "readCharacteristic:回傳 " + record);
+//            Log.d(TAG, "readCharacteristic: 回傳byte[] " + a.toString());
         }
 
         @SuppressLint("MissingPermission")
@@ -359,12 +359,4 @@ public class BluetoothLeService extends Service {
         return gethex;
 
     }
-
-    private Runnable waitMTU = new Runnable() {
-        @SuppressLint("MissingPermission")
-        @Override
-        public void run() {
-
-        }
-    };
 }

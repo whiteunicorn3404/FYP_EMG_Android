@@ -11,9 +11,11 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.IBinder;
-import android.util.Base64;
 import android.util.Log;
+import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
@@ -32,7 +34,15 @@ import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.formatter.ValueFormatter;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -45,20 +55,31 @@ public class BytetoGraph extends AppCompatActivity {
     private BluetoothLeService mBluetoothLeService;
     private ScannedData selectedDevice;
     private TextView byteView,serverStatus;
-    private short data_count = 0;
+    private Button startRecord, stopRecord;
+    private long data_count = 0;
+    private short fileCount = 0;
+    private short eventCount = 0;
 
     private LineChart data_chart;
     private Thread thread;
     private boolean plotData = true;
 
+    private boolean recordData = false;
+    private FileOutputStream fos;
+    private File dir;
+
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.byte_graph_view);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         selectedDevice = (ScannedData) getIntent().getSerializableExtra(INTENT_KEY);
         initBLE();
         initUI();
         startPlot();
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        dir = new File(Environment.getExternalStorageDirectory().getAbsolutePath()+"/Documents/EMG/"+timeStamp);
+        dir.mkdirs();
     }
 
     /**Initialize Bluetooth*/
@@ -82,6 +103,23 @@ public class BytetoGraph extends AppCompatActivity {
     private void initUI(){
         byteView = findViewById(R.id.byteView);
         serverStatus = findViewById(R.id.connection_state);
+        startRecord = findViewById(R.id.startRecordbtn);
+        stopRecord = findViewById(R.id.stopRecordbtn);
+        startRecord.setOnClickListener(v->{
+            recordData = true;
+        });
+        stopRecord.setOnClickListener(v->{
+            if(!recordData){ return; }
+            recordData = false;
+            try{
+                fos.flush();
+                fos.close();
+                fos = null;
+            }catch(IOException e1){
+                e1.printStackTrace();
+            }
+        });
+
         setGraph();
     }
 
@@ -141,6 +179,7 @@ public class BytetoGraph extends AppCompatActivity {
                 Log.d(TAG, "Decoded int[]: " + Arrays.toString(result_int));
                 byteView.setText("int[]: "+ Arrays.toString(result_int));
                 updateGraph(result_int);                                                               //add entries to graph one by one
+                writeFile(result_int);
             }
         }
     };//onReceive
@@ -179,7 +218,16 @@ public class BytetoGraph extends AppCompatActivity {
         if(thread!=null){
             thread.interrupt();
         }
+        if(fos!=null){
+            try{
+                fos.flush();
+                fos.close();
+            }catch(IOException e1){
+                e1.printStackTrace();
+            }
+        }
 
+        recordData = false;
         mBluetoothLeService.disconnect();
     }
 
@@ -189,6 +237,15 @@ public class BytetoGraph extends AppCompatActivity {
         if(thread!=null){
             thread.interrupt();
         }
+        if(fos!=null){
+            try{
+                fos.flush();
+                fos.close();
+            }catch(IOException e1){
+                e1.printStackTrace();
+            }
+        }
+        recordData = false;
         closeBluetooth();
     }
 
@@ -220,7 +277,7 @@ public class BytetoGraph extends AppCompatActivity {
             result_arr[i*2] = (first << 4&0b111111110000) | second >>> 4;
             result_arr[i*2+1] = ((second<<8)&0b111100000000) | third;                  //3840 == 0000111100000000; bitmask operation
         }
-        data_count += result_arr.length;
+        data_count += 1;
         Log.println(Log.INFO,TAG, "Result_arr length: " + result_arr.length);
         Log.println(Log.INFO,TAG,"Total Data Count: " + data_count);
         return result_arr;
@@ -322,9 +379,52 @@ public class BytetoGraph extends AppCompatActivity {
         YAxis y = data_chart.getAxisLeft();
         y.setTextColor(Color.BLACK);
         y.setDrawGridLines(true);
-        y.setAxisMaximum(5000);
-        y.setAxisMinimum(-2000);
+        y.setAxisMaximum(4000);
+        y.setAxisMinimum(0);
         data_chart.getAxisRight().setEnabled(false);
         data_chart.setVisibleXRange(0,50);//
+    }
+
+    private void writeFile(int[] data){
+        if(!recordData){ return; }
+        recordData = false;
+
+        if(eventCount>299){
+            try {
+                fos.flush();
+                fos.close();
+            }catch (IOException e){
+                e.printStackTrace();
+            }finally {
+                createNewFile();
+            }
+            eventCount = 0;
+        }
+
+        if(fos==null){ createNewFile(); }
+
+        byte[] bytes = new byte[data.length*2];
+        for(int i=0;i<data.length;++i) {
+            short temp = ((short) ((data[i] - 2048) << 4));
+            bytes[i*2] = (byte) (temp &0xff);
+            bytes[i*2+1] = (byte) ((temp>>8)&0xff);
+        }
+        try {
+            fos.write(bytes);
+        }catch (IOException e){
+            e.printStackTrace();
+        }
+        ++eventCount;
+        recordData = true;
+    }
+
+    private void createNewFile(){
+        String fileName = "EMG Record" + fileCount +".dat";
+        ++fileCount;
+        try {
+            fos = new FileOutputStream(new File(dir,fileName),true);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 }
