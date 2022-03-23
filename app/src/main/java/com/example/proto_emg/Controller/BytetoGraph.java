@@ -17,11 +17,13 @@ import android.util.Log;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.TextView;
+import androidx.appcompat.widget.Toolbar;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.proto_emg.Module.Entity.ScannedData;
+import com.example.proto_emg.Module.Entity.runfft;
 import com.example.proto_emg.Module.Service.BluetoothLeService;
 import com.example.proto_emg.R;
 import com.github.mikephil.charting.charts.LineChart;
@@ -37,13 +39,14 @@ import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 
 public class BytetoGraph extends AppCompatActivity {
@@ -54,7 +57,8 @@ public class BytetoGraph extends AppCompatActivity {
     private BluetoothGattCharacteristic emg_characteristic;
     private BluetoothLeService mBluetoothLeService;
     private ScannedData selectedDevice;
-    private TextView byteView,serverStatus;
+    private TextView byteView,serverStatus,medianView,titleView;
+    private Toolbar toolbar;
     private Button startRecord, stopRecord;
     private long data_count = 0;
     private short fileCount = 0;
@@ -68,6 +72,12 @@ public class BytetoGraph extends AppCompatActivity {
     private FileOutputStream fos;
     private File dir;
 
+    private runfft fft;
+    private short[] buffer = new short[4000];
+    private int bufferIndex = 0;
+    private Timer T;
+    long startTime;
+
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -80,6 +90,7 @@ public class BytetoGraph extends AppCompatActivity {
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         dir = new File(Environment.getExternalStorageDirectory().getAbsolutePath()+"/Documents/EMG/"+timeStamp);
         dir.mkdirs();
+        fft = new runfft(4096,500);
     }
 
     /**Initialize Bluetooth*/
@@ -103,10 +114,28 @@ public class BytetoGraph extends AppCompatActivity {
     private void initUI(){
         byteView = findViewById(R.id.byteView);
         serverStatus = findViewById(R.id.connection_state);
+        medianView = findViewById(R.id.medFreqView);
+        titleView = findViewById(R.id.emg_title);
+        toolbar = findViewById(R.id.toolbar3);
         startRecord = findViewById(R.id.startRecordbtn);
         stopRecord = findViewById(R.id.stopRecordbtn);
         startRecord.setOnClickListener(v->{
             recordData = true;
+            toolbar.setBackgroundColor(Color.parseColor("#FF94C2"));
+            startTime = System.currentTimeMillis();
+            titleView.setText("Time elapsed: 00:00");
+            TimerTask task = new TimerTask() {
+                @Override
+                public void run() {
+                    long elapsed = System.currentTimeMillis() - startTime;
+                    short seconds = (short) (elapsed/1000);
+                    short minutes = (short) (seconds/60);
+                    seconds = (short) (seconds%60);
+                    titleView.setText(String.format("Time elapsed: %02d:%02d",minutes,seconds));
+                }
+            };
+            T = new Timer();
+            T.scheduleAtFixedRate(task,0,1000);
         });
         stopRecord.setOnClickListener(v->{
             if(!recordData){ return; }
@@ -118,8 +147,9 @@ public class BytetoGraph extends AppCompatActivity {
             }catch(IOException e1){
                 e1.printStackTrace();
             }
+            toolbar.setBackgroundColor(Color.parseColor("#54FF54"));
+            T.cancel();
         });
-
         setGraph();
     }
 
@@ -169,17 +199,18 @@ public class BytetoGraph extends AppCompatActivity {
                 //byte[] decoded = Base64.decode(getByteData, Base64.DEFAULT);
                 Log.d(TAG, "No. of Bytes: " + getByteData.length);
                 //Log.println(Log.DEBUG,TAG,Arrays.toString(getByteData));
-                int[] result_int = byteToInt(getByteData);
+                short[] result_int = byteToInt(getByteData);
 //                StringBuilder stringBuilder = new StringBuilder(getByteData.length);
 //                for (byte byteChar : getByteData)
 //                    stringBuilder.append(String.format("%02X ", byteChar));
 //                String stringData = new String(getByteData);
 //                Log.d(TAG, "String: "+stringData+"\n"
 //                        +"byte[]: "+BluetoothLeService.byteArrayToHexStr(getByteData));
-                Log.d(TAG, "Decoded int[]: " + Arrays.toString(result_int));
-                byteView.setText("int[]: "+ Arrays.toString(result_int));
+                Log.d(TAG, "Decoded short[]: " + Arrays.toString(result_int));
+                byteView.setText("short[]: "+ Arrays.toString(result_int));
                 updateGraph(result_int);                                                               //add entries to graph one by one
                 writeFile(result_int);
+                getMedFreq(result_int);
             }
         }
     };//onReceive
@@ -222,11 +253,12 @@ public class BytetoGraph extends AppCompatActivity {
             try{
                 fos.flush();
                 fos.close();
+                fos = null;
             }catch(IOException e1){
                 e1.printStackTrace();
             }
         }
-
+        T.cancel();
         recordData = false;
         mBluetoothLeService.disconnect();
     }
@@ -241,6 +273,7 @@ public class BytetoGraph extends AppCompatActivity {
             try{
                 fos.flush();
                 fos.close();
+                fos = null;
             }catch(IOException e1){
                 e1.printStackTrace();
             }
@@ -265,17 +298,17 @@ public class BytetoGraph extends AppCompatActivity {
         serverStatus.setText("Device Incompatible! Please connect to another device!");
     }
 
-    private int[] byteToInt(byte[] decoded){
+    private short[] byteToInt(byte[] decoded){
         int iter = (decoded.length-decoded.length%3)/3;                                             //in case received data is not complete
-        int[] result_arr = new int[iter*2];
+        short[] result_arr = new short[iter*2];
 
         for(int i=0;i<iter;++i){
             int first = decoded[i*3] &0xff;
             int second = decoded[i*3+1]&0xff;
             int third = decoded[i*3+2]&0xff;
             //Log.println(Log.DEBUG,TAG,"First: "+Integer.toBinaryString(first)+" Second: "+Integer.toBinaryString(second));
-            result_arr[i*2] = (first << 4&0b111111110000) | second >>> 4;
-            result_arr[i*2+1] = ((second<<8)&0b111100000000) | third;                  //3840 == 0000111100000000; bitmask operation
+            result_arr[i*2] = (short) ((first << 4&0b111111110000) | second >>> 4);
+            result_arr[i*2+1] = (short) (((second<<8)&0b111100000000) | third);                  //3840 == 0000111100000000; bitmask operation
         }
         data_count += 1;
         Log.println(Log.INFO,TAG, "Result_arr length: " + result_arr.length);
@@ -316,7 +349,7 @@ public class BytetoGraph extends AppCompatActivity {
         }
     }
 
-    private void updateGraph(int[] arr){
+    private void updateGraph(short[] arr){
         if(plotData){
             plotData = false;
             for(int element:arr)
@@ -329,17 +362,14 @@ public class BytetoGraph extends AppCompatActivity {
             thread.interrupt();
         }
 
-        thread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while(true){
-                    //if(!plotData) break;
-                    plotData = true;
-                    try {
-                        Thread.sleep(10);
-                    }catch (InterruptedException e){
-                        e.printStackTrace();
-                    }
+        thread = new Thread(()->{
+            while(true){
+                //if(!plotData) break;
+                plotData = true;
+                try {
+                    Thread.sleep(10);
+                }catch (InterruptedException e){
+                    e.printStackTrace();
                 }
             }
         });
@@ -385,7 +415,7 @@ public class BytetoGraph extends AppCompatActivity {
         data_chart.setVisibleXRange(0,50);//
     }
 
-    private void writeFile(int[] data){
+    private void writeFile(short[] data){
         if(!recordData){ return; }
         recordData = false;
 
@@ -405,7 +435,7 @@ public class BytetoGraph extends AppCompatActivity {
 
         byte[] bytes = new byte[data.length*2];
         for(int i=0;i<data.length;++i) {
-            short temp = ((short) ((data[i] - 2048) << 4));
+            short temp = (short) ((data[i] - 2048) << 4);
             bytes[i*2] = (byte) (temp &0xff);
             bytes[i*2+1] = (byte) ((temp>>8)&0xff);
         }
@@ -423,8 +453,22 @@ public class BytetoGraph extends AppCompatActivity {
         ++fileCount;
         try {
             fos = new FileOutputStream(new File(dir,fileName),true);
-        } catch (FileNotFoundException e) {
+        }catch(FileNotFoundException e){
             e.printStackTrace();
+        }
+    }
+
+    private void getMedFreq(short[] in){
+        for(int i=0;i<50;++i){
+            buffer[i+bufferIndex] = in[i];
+        }
+        bufferIndex += 50;
+        if(bufferIndex>=4000){
+            medianView.setText(Double.toString(fft.calcMed(buffer)));
+            for(int i=0;i<3500;++i){
+                buffer[i]=buffer[i+500];
+            }
+            bufferIndex -= 500;
         }
     }
 }

@@ -271,7 +271,7 @@ public class BluetoothLeService extends Service {
                     broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
                 }
                 lockCharacteristicRead = false;
-                Log.d(TAG, "onCharacteristicRead: "+ascii2String(characteristic.getValue()));
+                //Log.d(TAG, "onCharacteristicRead: "+ascii2String(characteristic.getValue()));
             }
         }
 

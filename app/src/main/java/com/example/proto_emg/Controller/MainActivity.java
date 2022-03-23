@@ -73,7 +73,7 @@ public class MainActivity extends AppCompatActivity {
                 startActivityForResult(enableBtIntent,REQUEST_ENABLE_BT);
             }
 
-            /**Request Permisson to write to external storage*/
+            /**Request Permission to write to external storage*/
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
                             != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(

@@ -6,4 +6,6 @@
     <string name="byte_content">Byte Content：</string>
     <string name="start_record">Start Record</string>
     <string name="stop_record">Stop Record</string>
+    <string name="median">Median Frequency:</string>
+    <string name="wait">Waiting...</string>
 </resources>
